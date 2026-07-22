@@ -35,10 +35,6 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.7; }
         }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 0.8; }
-            50% { transform: scale(1.1); opacity: 1; }
-        }
         @keyframes scanline {
             0% { background-position: 0 0; }
             100% { background-position: 0 100%; }
@@ -87,6 +83,60 @@
             animation: scanline 10s linear infinite;
         }
 
+        /* ===== ЭКРАН БЛОКИРОВКИ (AUTH OVERLAY) ===== */
+        .auth-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .auth-card {
+            background: var(--card);
+            border: 2px solid var(--neon);
+            padding: 30px;
+            border-radius: 4px;
+            box-shadow: var(--glow);
+            width: 350px;
+            text-align: center;
+            animation: flicker 3s infinite;
+        }
+        .auth-card h2 {
+            color: var(--neon);
+            text-shadow: var(--glow);
+            margin-top: 0;
+            text-transform: uppercase;
+            font-size: 20px;
+        }
+        .auth-input {
+            width: 100%;
+            background: #000;
+            border: 1px solid var(--mute);
+            color: var(--text);
+            padding: 10px;
+            margin: 8px 0;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .auth-input:focus {
+            border-color: var(--neon);
+            outline: none;
+            box-shadow: var(--border-glow);
+        }
+        .auth-card .toggle-link {
+            margin-top: 15px;
+            display: block;
+            color: var(--neon);
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 12px;
+            text-shadow: var(--glow);
+            text-transform: uppercase;
+        }
+
         /* ===== ШАПКА ===== */
         header {
             border-bottom: 1px dashed var(--neon);
@@ -119,7 +169,7 @@
             transform: scale(1.05);
         }
 
-        /* ===== ДВУХКОЛОНОЧНЫЙ МАКЕТ (без новостей) ===== */
+        /* ===== ДВУХКОЛОНОЧНЫЙ МАКЕТ ===== */
         .main-container {
             display: flex;
             gap: 20px;
@@ -169,7 +219,6 @@
             height: 8px;
             border-radius: 50%;
             display: inline-block;
-            animation: pulse 1.5s infinite;
         }
         .status-sidebar .online { background: #0f0; box-shadow: 0 0 15px #0f0; }
         .status-sidebar .error  { background: #ff0; box-shadow: 0 0 15px #ff0; }
@@ -310,40 +359,14 @@
             text-align: center;
         }
 
-        /* ===== ИГРОВЫЕ КАНВАСЫ ===== */
-        .game-wrapper {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-        .game-wrapper canvas {
-            border: 2px solid var(--neon);
-            background: #0a0000;
-            box-shadow: var(--glow), 0 0 40px rgba(255,0,0,0.2);
-            max-width: 100%;
+        /* ===== ПАНЕЛЬ АДМИНИСТРАТОРА (ID 0) ===== */
+        .admin-panel {
+            background: #200000;
+            border: 2px dashed var(--neon);
+            padding: 20px;
+            margin-top: 20px;
             border-radius: 4px;
-        }
-        .game-stats {
-            display: flex;
-            gap: 40px;
-            flex-wrap: wrap;
-            justify-content: center;
-            font-weight: 900;
-            color: var(--neon);
-            text-shadow: var(--glow);
-            font-size: 18px;
-        }
-        .game-controls {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-top: 5px;
-        }
-        .game-controls .action-btn {
-            padding: 8px 25px;
-            font-size: 13px;
+            box-shadow: var(--glow);
         }
 
         /* ===== АДАПТИВ ===== */
@@ -369,165 +392,345 @@
         }
         @media (max-width: 480px) {
             .status-sidebar .status-card { flex: 1 1 100%; }
-            .game-stats { gap: 20px; font-size: 15px; }
         }
     </style>
 </head>
 <body data-theme="dark">
 
-    <!-- ШАПКА -->
-    <header>
-        <button class="top-btn" onclick="document.body.setAttribute('data-theme', document.body.getAttribute('data-theme')==='dark'?'light':'dark')">☀️/🌙</button>
-        <button class="top-btn" id="langBtn" onclick="toggleLang()">EN</button>
-    </header>
+    <!-- ЭКРАН БЛОКИРОВКИ (ОКНО АВТОРИЗАЦИИ) -->
+    <div id="authOverlay" class="auth-overlay">
+        <!-- Блок загрузки (показывается пока идет проверка вошел ли юзер) -->
+        <div id="authLoading" style="color: var(--neon); font-size: 18px; text-shadow: var(--glow);">
+            CONNECTING TO DATABASE...
+        </div>
 
-    <!-- ОСНОВНОЙ КОНТЕЙНЕР -->
-    <div class="main-container">
+        <!-- Окно Входа -->
+        <div id="loginBox" class="auth-card hidden">
+            <h2>LOG IN // ВХОД</h2>
+            <input type="text" id="loginName" class="auth-input" placeholder="ИМЯ ПОЛЬЗОВАТЕЛЯ">
+            <input type="password" id="loginPassword" class="auth-input" placeholder="ПАРОЛЬ">
+            <button class="top-btn" id="btnLogin" style="width: 100%; margin-top: 15px;">ВОЙТИ</button>
+            <span class="toggle-link" id="linkToRegister">Нет аккаунта? Регистрация</span>
+            <div style="margin-top: 15px; font-size: 11px; color: var(--mute);">Проблема? Напишите в поддержку</div>
+        </div>
 
-        <!-- ЛЕВАЯ КОЛОНКА: СТАТУСЫ -->
-        <aside class="status-sidebar">
-            <div class="status-card">
-                <div class="card-line1" data-ru="Сайт [GitHub]" data-en="Site [GitHub]">Сайт [GitHub]</div>
-                <div class="card-line2">
-                    <span class="status-dot online"></span>
-                    <span data-ru="Online" data-en="Online">Online</span>
-                </div>
-                <a href="https://i-am-tired-of-inventing-nicknames.github.io/Site/" target="_blank" class="card-link">[ Открыть ]</a>
-            </div>
-            <div class="status-card">
-                <div class="card-line1" data-ru="Сайт [Cloudflare]" data-en="Site [Cloudflare]">Сайт [Cloudflare]</div>
-                <div class="card-line2">
-                    <span class="status-dot error"></span>
-                    <span data-ru="Error" data-en="Error">Error</span>
-                </div>
-                <a href="https://site-avt.pages.dev/" target="_blank" class="card-link">[ Открыть ]</a>
-            </div>
-            <div class="status-card">
-                <div class="card-line1" data-ru="Бот [Telegram]" data-en="Bot [Telegram]">Бот [Telegram]</div>
-                <div class="card-line2">
-                    <span class="status-dot offline"></span>
-                    <span data-ru="Offline" data-en="Offline">Offline</span>
-                </div>
-                <a href="https://t.me/MySiteNicknameBot" target="_blank" class="card-link">[ Открыть ]</a>
-            </div>
-        </aside>
+        <!-- Окно Регистрации -->
+        <div id="registerBox" class="auth-card hidden">
+            <h2>SIGN UP // РЕГИСТРАЦИЯ</h2>
+            <input type="text" id="regName" class="auth-input" placeholder="ИМЯ ПОЛЬЗОВАТЕЛЯ">
+            <input type="password" id="regPassword" class="auth-input" placeholder="ПАРОЛЬ">
+            
+            <!-- Математическая капча -->
+            <div id="captchaQuestion" style="color: var(--mute); font-size: 12px; margin: 10px 0; font-weight: bold;"></div>
+            <input type="text" id="captchaAnswer" class="auth-input" placeholder="ОТВЕТ НА КАПЧУ">
 
-        <!-- ЦЕНТР -->
-        <main class="content-area">
-
-            <!-- ===== ГЛАВНАЯ ===== -->
-            <div id="heroPage" class="page-view hero-view">
-                <h1 id="mainTitle">//МОЙ САЙТ, НЕЗНАЮ ЗАЧЕМ СОЗДАЛ</h1>
-                <div class="subtitle" data-ru="просто сайт" data-en="just a site">просто сайт</div>
-                <div class="nav-menu">
-                    <button class="action-btn" onclick="showPage('projectsPage')" data-ru="📁 Проекты" data-en="📁 Projects">📁 Проекты</button>
-                    <button class="action-btn" onclick="showPage('announcementsPage')" data-ru="📢 Анонсы" data-en="📢 Announcements">📢 Анонсы</button>
-                </div>
-            </div>
-
-            <!-- ===== СТРАНИЦА ПРОЕКТОВ ===== -->
-            <div id="projectsPage" class="page-view hidden">
-                <button class="back-btn" onclick="showPage('heroPage')" data-ru="&lt; НА ГЛАВНУЮ" data-en="&lt; BACK HOME">&lt; НА ГЛАВНУЮ</button>
-                <div class="page-title" data-ru="📁 Проекты" data-en="📁 Projects">📁 Проекты</div>
-                <div class="items-list">
-                    <button class="action-btn" onclick="showPage('enginePage')" data-ru="⚙ DoubleEngine" data-en="⚙ DoubleEngine">⚙ DoubleEngine</button>
-                    <button class="action-btn" onclick="showPage('snakePage')" data-ru="🐍 Змейка" data-en="🐍 Snake">🐍 Змейка</button>
-                    <button class="action-btn" onclick="showPage('territoryPage')" data-ru="🌍 Territory Wars" data-en="🌍 Territory Wars">🌍 Territory Wars</button>
-                </div>
-            </div>
-
-            <!-- ===== СТРАНИЦА АНОНСОВ ===== -->
-            <div id="announcementsPage" class="page-view hidden">
-                <button class="back-btn" onclick="showPage('heroPage')" data-ru="&lt; НА ГЛАВНУЮ" data-en="&lt; BACK HOME">&lt; НА ГЛАВНУЮ</button>
-                <div class="page-title" data-ru="📢 Анонсы" data-en="📢 Announcements">📢 Анонсы</div>
-                <div class="items-list">
-                    <button class="action-btn" onclick="showPage('warpointsPage')">⚡ WarOfPoints</button>
-                    <button class="action-btn" onclick="showPage('markovPage')">🧠 MarkovTransform</button>
-                </div>
-            </div>
-
-            <!-- ===== ДВИЖОК ===== -->
-            <div id="enginePage" class="page-view hidden">
-                <button class="back-btn" onclick="showPage('projectsPage')" data-ru="&lt; К ПРОЕКТАМ" data-en="&lt; TO PROJECTS">&lt; К ПРОЕКТАМ</button>
-                <div class="page-title">⚙ DoubleEngine</div>
-                <p class="text-muted" data-ru="[ Список версий пуст ]" data-en="[ Version list is empty ]">[ Список версий пуст ]</p>
-                <p style="color:var(--mute); font-size:14px;" data-ru="Здесь будут анонсы и версии движка." data-en="Engine announcements and versions will appear here.">
-                    Здесь будут анонсы и версии движка.
-                </p>
-            </div>
-
-            <!-- ===== ЗМЕЙКА ===== -->
-            <div id="snakePage" class="page-view hidden">
-                <button class="back-btn" onclick="clearInterval(snakeInterval); showPage('projectsPage')" data-ru="&lt; К ПРОЕКТАМ" data-en="&lt; TO PROJECTS">&lt; К ПРОЕКТАМ</button>
-                <div class="page-title" data-ru="🐍 Змейка" data-en="🐍 Snake">🐍 Змейка</div>
-                <div class="game-wrapper">
-                    <div class="game-stats">
-                        <div><span data-ru="Очки: " data-en="Score: ">Очки: </span><span id="sc">0</span></div>
-                        <div><span data-ru="Рекорд: " data-en="High: ">Рекорд: </span><span id="hs">0</span></div>
-                    </div>
-                    <canvas id="snakeCanvas" width="400" height="400"></canvas>
-                </div>
-            </div>
-
-            <!-- ===== TERRITORY WARS ===== -->
-            <div id="territoryPage" class="page-view hidden">
-                <button class="back-btn" onclick="clearInterval(territoryInterval); showPage('projectsPage')" data-ru="&lt; К ПРОЕКТАМ" data-en="&lt; TO PROJECTS">&lt; К ПРОЕКТАМ</button>
-                <div class="page-title" data-ru="🌍 Territory Wars" data-en="🌍 Territory Wars">🌍 Territory Wars</div>
-                <div class="game-wrapper">
-                    <div class="game-stats">
-                        <div><span data-ru="Такт: " data-en="Turn: ">Такт: </span><span id="turnCount">0</span></div>
-                        <div><span data-ru="Клеток: " data-en="Cells: ">Клеток: </span><span id="cellCount">16384</span></div>
-                    </div>
-                    <canvas id="territoryCanvas" width="640" height="640"></canvas>
-                    <div class="game-controls">
-                        <button class="action-btn" onclick="toggleTerritory()" id="territoryToggle" data-ru="⏸ Пауза" data-en="⏸ Pause">⏸ Пауза</button>
-                        <button class="action-btn" onclick="resetTerritory()" data-ru="🔄 Перезапуск" data-en="🔄 Restart">🔄 Перезапуск</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ===== WAROFPOINTS (анонс) ===== -->
-            <div id="warpointsPage" class="page-view hidden">
-                <button class="back-btn" onclick="showPage('announcementsPage')" data-ru="&lt; К АНОНСАМ" data-en="&lt; TO ANNOUNCEMENTS">&lt; К АНОНСАМ</button>
-                <div class="page-title">⚡ WarOfPoints</div>
-                <div style="color:var(--mute); font-size:16px; line-height:1.6;">
-                    <p><strong style="color:var(--neon);">WarOfPoints</strong> — это стратегическая игра на основе захвата точек на карте. Каждый игрок управляет армией, которая перемещается между точками, захватывая их и защищая свои территории.</p>
-                    <p>Особенности:</p>
-                    <ul style="color:var(--text); padding-left:20px;">
-                        <li>Динамическая карта с изменяемыми границами</li>
-                        <li>ИИ-противники с разными уровнями сложности</li>
-                        <li>Режимы: кампания, быстрая игра, онлайн-мультиплеер (в планах)</li>
-                    </ul>
-                    <p style="color:var(--mute);">Релиз запланирован на 2026 год. Следите за обновлениями!</p>
-                </div>
-            </div>
-
-            <!-- ===== MARKOVTRANSFORM (анонс) ===== -->
-            <div id="markovPage" class="page-view hidden">
-                <button class="back-btn" onclick="showPage('announcementsPage')" data-ru="&lt; К АНОНСАМ" data-en="&lt; TO ANNOUNCEMENTS">&lt; К АНОНСАМ</button>
-                <div class="page-title">🧠 MarkovTransform</div>
-                <div style="color:var(--mute); font-size:16px; line-height:1.6;">
-                    <p><strong style="color:var(--neon);">MarkovTransform</strong> — нейросетевой проект, использующий марковские цепи для генерации музыки, текста и изображений.</p>
-                    <p>Технологии:</p>
-                    <ul style="color:var(--text); padding-left:20px;">
-                        <li>Рекуррентные нейронные сети (LSTM)</li>
-                        <li>Обучение с подкреплением для управления генерацией</li>
-                        <li>Интерфейс для интерактивного творчества</li>
-                    </ul>
-                    <p style="color:var(--mute);">Прототип уже работает. Ожидайте бета-версию в ближайшие месяцы.</p>
-                </div>
-            </div>
-
-        </main>
+            <button class="top-btn" id="btnRegister" style="width: 100%; margin-top: 15px;">СОЗДАТЬ</button>
+            <span class="toggle-link" id="linkToLogin">Уже зарегистрированы? Войти</span>
+            <div style="margin-top: 15px; font-size: 11px; color: var(--mute);">Проблема? Напишите в поддержку</div>
+        </div>
     </div>
 
-    <!-- ===== СКРИПТЫ ===== -->
+    <!-- ===== САМ САЙТ (Обертка) ===== -->
+    <div id="siteWrapper" class="hidden">
+        <!-- ШАПКА -->
+        <header>
+            <button class="top-btn" onclick="document.body.setAttribute('data-theme', document.body.getAttribute('data-theme')==='dark'?'light':'dark')">☀️/🌙</button>
+            <button class="top-btn" id="langBtn" onclick="toggleLang()">EN</button>
+            <div style="flex-grow: 1;"></div>
+            <span style="align-self: center; font-size: 12px; margin-right: 15px; color: var(--mute)">
+                USER: <span id="headerUserName" style="color: var(--neon)">...</span> 
+                (ID: <span id="headerUserID" style="color: var(--neon)">...</span>)
+            </span>
+            <button class="top-btn" id="btnLogout" style="border-color: #550000; color: #ff5555;">ВЫЙТИ</button>
+        </header>
+
+        <!-- ОСНОВНОЙ КОНТЕЙНЕР -->
+        <div class="main-container">
+
+            <!-- ЛЕВАЯ КОЛОНКА: СТАТУСЫ -->
+            <aside class="status-sidebar">
+                <div class="status-card">
+                    <div class="card-line1" data-ru="Сайт [GitHub]" data-en="Site [GitHub]">Сайт [GitHub]</div>
+                    <div class="card-line2">
+                        <span class="status-dot online"></span>
+                        <span data-ru="Online" data-en="Online">Online</span>
+                    </div>
+                    <a href="https://i-am-tired-of-inventing-nicknames.github.io/Site/" target="_blank" class="card-link">[ Открыть ]</a>
+                </div>
+                <div class="status-card">
+                    <div class="card-line1" data-ru="Сайт [Cloudflare]" data-en="Site [Cloudflare]">Сайт [Cloudflare]</div>
+                    <div class="card-line2">
+                        <span class="status-dot error"></span>
+                        <span data-ru="Error" data-en="Error">Error</span>
+                    </div>
+                    <a href="https://site-avt.pages.dev/" target="_blank" class="card-link">[ Открыть ]</a>
+                </div>
+                <div class="status-card">
+                    <div class="card-line1" data-ru="Бот [Telegram]" data-en="Bot [Telegram]">Бот [Telegram]</div>
+                    <div class="card-line2">
+                        <span class="status-dot offline"></span>
+                        <span data-ru="Offline" data-en="Offline">Offline</span>
+                    </div>
+                    <a href="https://t.me/MySiteNicknameBot" target="_blank" class="card-link">[ Открыть ]</a>
+                </div>
+            </aside>
+
+            <!-- ЦЕНТР -->
+            <main class="content-area">
+
+                <!-- Панель только для админа (ID 0) -->
+                <div id="adminPanel" class="admin-panel hidden">
+                    <h3 style="color: var(--neon); margin-top:0;">SYSTEM CONTROL // ID 0</h3>
+                    <p style="font-size: 13px; color: var(--mute);">Вам доступны жалобы в поддержку и ответы на них.</p>
+                    <button class="top-btn" onclick="alert('Список тикетов пока пуст.')">ОТКРЫТЬ ЖАЛОБЫ</button>
+                </div>
+
+                <!-- ===== ГЛАВНАЯ ===== -->
+                <div id="heroPage" class="page-view hero-view" style="margin-top: 20px;">
+                    <h1 id="mainTitle">//МОЙ САЙТ, НЕЗНАЮ ЗАЧЕМ СОЗДАЛ</h1>
+                    <div class="subtitle" data-ru="просто сайт" data-en="just a site">просто сайт</div>
+                    <div class="nav-menu">
+                        <button class="action-btn" onclick="showPage('projectsPage')" data-ru="📁 Проекты" data-en="📁 Projects">📁 Проекты</button>
+                        <button class="action-btn" onclick="showPage('announcementsPage')" data-ru="📢 Анонсы" data-en="📢 Announcements">📢 Анонсы</button>
+                    </div>
+                </div>
+
+                <!-- ===== СТРАНИЦА ПРОЕКТОВ ===== -->
+                <div id="projectsPage" class="page-view hidden">
+                    <button class="back-btn" onclick="showPage('heroPage')" data-ru="&lt; НА ГЛАВНУЮ" data-en="&lt; BACK HOME">&lt; НА ГЛАВНУЮ</button>
+                    <div class="page-title" data-ru="📁 Проекты" data-en="📁 Projects">📁 Проекты</div>
+                    <div class="items-list">
+                        <button class="action-btn" onclick="showPage('enginePage')" data-ru="⚙ DoubleEngine" data-en="⚙ DoubleEngine">⚙ DoubleEngine</button>
+                    </div>
+                </div>
+
+                <!-- ===== СТРАНИЦА АНОНСОВ ===== -->
+                <div id="announcementsPage" class="page-view hidden">
+                    <button class="back-btn" onclick="showPage('heroPage')" data-ru="&lt; НА ГЛАВНУЮ" data-en="&lt; BACK HOME">&lt; НА ГЛАВНУЮ</button>
+                    <div class="page-title" data-ru="📢 Анонсы" data-en="📢 Announcements">📢 Анонсы</div>
+                    <div class="items-list">
+                        <button class="action-btn" onclick="showPage('warpointsPage')">⚡ WarOfPoints</button>
+                        <button class="action-btn" onclick="showPage('markovPage')">🧠 MarkovTransform</button>
+                    </div>
+                </div>
+
+                <!-- ===== ДВИЖОК ===== -->
+                <div id="enginePage" class="page-view hidden">
+                    <button class="back-btn" onclick="showPage('projectsPage')" data-ru="&lt; К ПРОЕКТАМ" data-en="&lt; TO PROJECTS">&lt; К ПРОЕКТАМ</button>
+                    <div class="page-title">⚙ DoubleEngine</div>
+                    <p class="text-muted" data-ru="[ Список версий пуст ]" data-en="[ Version list is empty ]">[ Список версий пуст ]</p>
+                    <p style="color:var(--mute); font-size:14px;" data-ru="Здесь будут анонсы и версии движка." data-en="Engine announcements and versions will appear here.">
+                        Здесь будут анонсы и версии движка.
+                    </p>
+                </div>
+
+                <!-- ===== WAROFPOINTS ===== -->
+                <div id="warpointsPage" class="page-view hidden">
+                    <button class="back-btn" onclick="showPage('announcementsPage')" data-ru="&lt; К АНОНСАМ" data-en="&lt; TO ANNOUNCEMENTS">&lt; К АНОНСАМ</button>
+                    <div class="page-title">⚡ WarOfPoints</div>
+                    <div style="color:var(--mute); font-size:16px; line-height:1.6;">
+                        <p><strong style="color:var(--neon);">WarOfPoints</strong> — это стратегическая игра...</p>
+                    </div>
+                </div>
+
+                <!-- ===== MARKOVTRANSFORM ===== -->
+                <div id="markovPage" class="page-view hidden">
+                    <button class="back-btn" onclick="showPage('announcementsPage')" data-ru="&lt; К АНОНСАМ" data-en="&lt; TO ANNOUNCEMENTS">&lt; К АНОНСАМ</button>
+                    <div class="page-title">🧠 MarkovTransform</div>
+                    <div style="color:var(--mute); font-size:16px; line-height:1.6;">
+                        <p><strong style="color:var(--neon);">MarkovTransform</strong> — нейросетевой проект...</p>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- ===== ПОДКЛЮЧЕНИЕ FIREBASE И ВСЯ ЛОГИКА ===== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, runTransaction } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+        // Конфиг твоего проекта site-82039
+        const firebaseConfig = {
+            apiKey: "AIzaSyACBhHOP6oyTIhnqJIkny7Cl1Zwc9JuOXQ",
+            authDomain: "site-82039.firebaseapp.com",
+            projectId: "site-82039",
+            storageBucket: "site-82039.firebasestorage.app",
+            messagingSenderId: "369878147777",
+            appId: "1:369878147777:web:72f179d22b779b6c786a40",
+            measurementId: "G-FLRYRZHK83"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // -----------------------------------------------
+        // 1. ГЕНЕРАЦИЯ КАПЧИ
+        // -----------------------------------------------
+        let num1 = Math.floor(Math.random() * 9) + 1;
+        let num2 = Math.floor(Math.random() * 9) + 1;
+        document.getElementById('captchaQuestion').innerText = `РЕШИТЕ ПРИМЕР: ${num1} + ${num2} = ?`;
+
+        // -----------------------------------------------
+        // 2. ПЕРЕКЛЮЧЕНИЕ ОКОН АВТОРИЗАЦИИ
+        // -----------------------------------------------
+        document.getElementById('linkToRegister').onclick = () => {
+            document.getElementById('loginBox').classList.add('hidden');
+            document.getElementById('registerBox').classList.remove('hidden');
+        };
+        document.getElementById('linkToLogin').onclick = () => {
+            document.getElementById('registerBox').classList.add('hidden');
+            document.getElementById('loginBox').classList.remove('hidden');
+        };
+
+        // -----------------------------------------------
+        // 3. ВАЛИДАЦИЯ BASE64 СИМВОЛОВ
+        // -----------------------------------------------
+        function isValidBase64Symbols(str) {
+            const base64Regex = /^[A-Za-z0-9+/=]+$/;
+            return base64Regex.test(str);
+        }
+
+        // -----------------------------------------------
+        // 4. РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ
+        // -----------------------------------------------
+        document.getElementById('btnRegister').onclick = async () => {
+            const name = document.getElementById('regName').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const captchaAns = parseInt(document.getElementById('captchaAnswer').value);
+
+            if (!name || !password) {
+                alert("Заполните все поля!");
+                return;
+            }
+            if (!isValidBase64Symbols(name) || !isValidBase64Symbols(password)) {
+                alert("Используйте только латинские буквы, цифры и символы +, /, =");
+                return;
+            }
+            if (captchaAns !== (num1 + num2)) {
+                alert("Неверный ответ на капчу!");
+                return;
+            }
+
+            const virtualEmail = `${name}@site.local`;
+
+            try {
+                // Создаем учетную запись в Firebase Auth
+                const userCred = await createUserWithEmailAndPassword(auth, virtualEmail, password);
+                const user = userCred.user;
+
+                // Получаем порядковый ID через транзакцию в БД
+                const counterRef = doc(db, "system", "user_counter");
+                let assignedId = 0;
+
+                await runTransaction(db, async (transaction) => {
+                    const counterDoc = await transaction.get(counterRef);
+                    if (!counterDoc.exists()) {
+                        transaction.set(counterRef, { currentId: 1 });
+                        assignedId = 0;
+                    } else {
+                        assignedId = counterDoc.data().currentId;
+                        transaction.update(counterRef, { currentId: assignedId + 1 });
+                    }
+                });
+
+                // Создаем документ профиля
+                await setDoc(doc(db, "users", user.uid), {
+                    id: assignedId,
+                    nickname: name
+                });
+
+                alert("Регистрация успешна!");
+            } catch (error) {
+                alert("Ошибка регистрации: " + error.message);
+            }
+        };
+
+        // -----------------------------------------------
+        // 5. ВХОД В АККАУНТ
+        // -----------------------------------------------
+        document.getElementById('btnLogin').onclick = async () => {
+            const name = document.getElementById('loginName').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!name || !password) {
+                alert("Заполните все поля!");
+                return;
+            }
+
+            const virtualEmail = `${name}@site.local`;
+
+            try {
+                await signInWithEmailAndPassword(auth, virtualEmail, password);
+            } catch (error) {
+                alert("Ошибка входа: Неверное имя или пароль.");
+            }
+        };
+
+        // -----------------------------------------------
+        // 6. ВЫХОД ИЗ АККАУНТА
+        // -----------------------------------------------
+        document.getElementById('btnLogout').onclick = () => {
+            signOut(auth);
+        };
+
+        // -----------------------------------------------
+        // 7. КОНТРОЛЬ СОСТОЯНИЯ СЕССИИ (onAuthStateChanged)
+        // -----------------------------------------------
+        onAuthStateChanged(auth, async (user) => {
+            const authOverlay = document.getElementById('authOverlay');
+            const authLoading = document.getElementById('authLoading');
+            const loginBox = document.getElementById('loginBox');
+            const registerBox = document.getElementById('registerBox');
+            const siteWrapper = document.getElementById('siteWrapper');
+
+            if (user) {
+                // Пользователь вошел, грузим его профиль
+                try {
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        
+                        // Выводим имя и ID в шапку
+                        document.getElementById('headerUserName').innerText = userData.nickname;
+                        document.getElementById('headerUserID').innerText = userData.id;
+
+                        // Если это админ (ID 0), показываем панель
+                        if (userData.id === 0) {
+                            document.getElementById('adminPanel').classList.remove('hidden');
+                        } else {
+                            document.getElementById('adminPanel').classList.add('hidden');
+                        }
+
+                        // Прячем экран блокировки и открываем сайт
+                        authOverlay.classList.add('hidden');
+                        siteWrapper.classList.remove('hidden');
+                    } else {
+                        alert("Ошибка: профиль не найден в базе данных.");
+                        signOut(auth);
+                    }
+                } catch (e) {
+                    alert("Ошибка загрузки профиля: " + e.message);
+                    signOut(auth);
+                }
+            } else {
+                // Пользователь не вошел, показываем только окно входа
+                siteWrapper.classList.add('hidden');
+                authOverlay.classList.remove('hidden');
+                authLoading.classList.add('hidden');
+                registerBox.classList.add('hidden');
+                loginBox.classList.remove('hidden');
+            }
+        });
+    </script>
+
+    <!-- ===== СКРИПТЫ ЛОКАЛИЗАЦИИ И НАВИГАЦИИ ===== -->
     <script>
-        // -----------------------------------------------
-        // 1. ПЕРЕКЛЮЧЕНИЕ ЯЗЫКА
-        // -----------------------------------------------
         let lang = 'ru';
-        function toggleLang() {
+        window.toggleLang = function() {
             lang = (lang === 'ru') ? 'en' : 'ru';
             document.getElementById('langBtn').innerText = (lang === 'ru') ? 'EN' : 'RU';
             document.getElementById('mainTitle').innerText = (lang === 'ru')
@@ -539,397 +742,19 @@
             });
         }
 
-        // -----------------------------------------------
-        // 2. ПЕРЕКЛЮЧЕНИЕ СТРАНИЦ
-        // -----------------------------------------------
-        function showPage(id) {
+        window.showPage = function(id) {
             const pages = [
                 'heroPage', 'projectsPage', 'announcementsPage',
-                'enginePage', 'snakePage', 'territoryPage',
-                'warpointsPage', 'markovPage'
+                'enginePage', 'warpointsPage', 'markovPage'
             ];
-            pages.forEach(p => document.getElementById(p).classList.add('hidden'));
-            document.getElementById(id).classList.remove('hidden');
-
-            if (id === 'snakePage') initSnake();
-            if (id === 'territoryPage') initTerritory();
-        }
-
-        // -----------------------------------------------
-        // 3. ЗМЕЙКА (без alert)
-        // -----------------------------------------------
-        const snakeCanvas = document.getElementById('snakeCanvas');
-        const sCtx = snakeCanvas.getContext('2d');
-        const SZ = 400, G = 20;
-        let snake, dx, dy, food, score, highScore, snakeInterval;
-
-        function initSnake() {
-            highScore = parseInt(localStorage.getItem('snakeHighScore')) || 0;
-            document.getElementById('hs').innerText = highScore;
-            snake = [{x:160, y:160}, {x:140, y:160}];
-            dx = G; dy = 0;
-            score = 0;
-            document.getElementById('sc').innerText = 0;
-            spawnFood();
-            clearInterval(snakeInterval);
-            snakeInterval = setInterval(updateSnake, 100);
-        }
-
-        function spawnFood() {
-            food = {
-                x: Math.floor(Math.random() * (SZ/G)) * G,
-                y: Math.floor(Math.random() * (SZ/G)) * G
-            };
-        }
-
-        window.addEventListener('keydown', (e) => {
-            const key = e.key;
-            if (key === 'ArrowLeft' && dx === 0) { dx = -G; dy = 0; }
-            else if (key === 'ArrowUp' && dy === 0) { dx = 0; dy = -G; }
-            else if (key === 'ArrowRight' && dx === 0) { dx = G; dy = 0; }
-            else if (key === 'ArrowDown' && dy === 0) { dx = 0; dy = G; }
-            if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(key)) e.preventDefault();
-        });
-
-        function updateSnake() {
-            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
-            if (head.x < 0 || head.x >= SZ || head.y < 0 || head.y >= SZ ||
-                snake.some(seg => seg.x === head.x && seg.y === head.y)) {
-                clearInterval(snakeInterval);
-                if (score > highScore) {
-                    highScore = score;
-                    localStorage.setItem('snakeHighScore', highScore);
-                    document.getElementById('hs').innerText = highScore;
-                }
-                initSnake();
-                return;
-            }
-            snake.unshift(head);
-            if (head.x === food.x && head.y === food.y) {
-                score += 10;
-                document.getElementById('sc').innerText = score;
-                if (score > highScore) {
-                    highScore = score;
-                    localStorage.setItem('snakeHighScore', highScore);
-                    document.getElementById('hs').innerText = highScore;
-                }
-                spawnFood();
-            } else {
-                snake.pop();
-            }
-            drawSnake();
-        }
-
-        function drawSnake() {
-            sCtx.fillStyle = '#0a0000';
-            sCtx.fillRect(0, 0, SZ, SZ);
-            sCtx.shadowBlur = 20;
-            sCtx.shadowColor = '#f00';
-            sCtx.fillStyle = '#f00';
-            sCtx.fillRect(food.x, food.y, G-2, G-2);
-            snake.forEach((seg, i) => {
-                sCtx.fillStyle = (i === 0) ? '#ff2222' : '#990000';
-                sCtx.shadowBlur = (i === 0) ? 25 : 10;
-                sCtx.shadowColor = '#f00';
-                sCtx.fillRect(seg.x, seg.y, G-2, G-2);
+            pages.forEach(p => {
+                const el = document.getElementById(p);
+                if (el) el.classList.add('hidden');
             });
-            sCtx.shadowBlur = 0;
+            const target = document.getElementById(id);
+            if (target) target.classList.remove('hidden');
         }
 
-        // -----------------------------------------------
-        // 4. TERRITORY WARS (без изменений, но с индивидуальным статусом войны)
-        // -----------------------------------------------
-        const territoryCanvas = document.getElementById('territoryCanvas');
-        const tCtx = territoryCanvas.getContext('2d');
-        const T_SIZE = 128;
-        const CELL_SIZE = 5;
-        const TICK_INTERVAL_MS = 40;
-
-        const COLORS = ['#0066ff', '#ff0000', '#00cc00', '#ffcc00', '#9900ff', '#ff6600', '#00ffff', '#ff00ff'];
-        const COLOR_NAMES = ['blue', 'red', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta'];
-        const BASE_PRIORITY = [0,1,2,3,4,5,6,7];
-
-        let territoryGrid = [];
-        let territoryRunning = true;
-        let territoryInterval = null;
-        let turn = 0;
-
-        let warStatus = new Array(COLORS.length).fill(false);
-
-        const SEPARATIST_CHANCE = 0.001;
-        const MIN_DIAMETER = 5;
-        const MAX_DIAMETER = 20;
-
-        let epidemicColor = -1;
-        let epidemicTurns = 0;
-        const EPIDEMIC_CHANCE = 0.001;
-        const EPIDEMIC_DURATION = 15;
-        const EPIDEMIC_BONUS = 0.3;
-
-        const CRISIS_THRESHOLD = 0.60;
-        const CRISIS_CHANCE = 0.01;
-
-        const MIGRATION_CHANCE = 0.001;
-        const MIGRATION_FRACTION = 0.05;
-
-        const WAR_STATUS_FLIP_CHANCE = 0.005;
-
-        function initTerritory() {
-            clearInterval(territoryInterval);
-            territoryGrid = [];
-            for (let i = 0; i < T_SIZE; i++) {
-                territoryGrid[i] = new Uint8Array(T_SIZE);
-                for (let j = 0; j < T_SIZE; j++) {
-                    territoryGrid[i][j] = Math.floor(Math.random() * COLORS.length);
-                }
-            }
-            turn = 0;
-            epidemicColor = -1;
-            epidemicTurns = 0;
-            for (let c = 0; c < COLORS.length; c++) {
-                warStatus[c] = Math.random() < 0.5;
-            }
-            document.getElementById('turnCount').innerText = turn;
-            document.getElementById('cellCount').innerText = T_SIZE * T_SIZE;
-            territoryRunning = true;
-            document.getElementById('territoryToggle').innerText = (lang === 'ru') ? '⏸ Пауза' : '⏸ Pause';
-            drawTerritory();
-            clearInterval(territoryInterval);
-            territoryInterval = setInterval(stepTerritory, TICK_INTERVAL_MS);
-        }
-
-        function drawTerritory() {
-            tCtx.clearRect(0, 0, 640, 640);
-            for (let i = 0; i < T_SIZE; i++) {
-                for (let j = 0; j < T_SIZE; j++) {
-                    const colorIdx = territoryGrid[i][j];
-                    tCtx.fillStyle = COLORS[colorIdx];
-                    tCtx.fillRect(j * CELL_SIZE, i * CELL_SIZE, CELL_SIZE-1, CELL_SIZE-1);
-                }
-            }
-            tCtx.strokeStyle = '#f00';
-            tCtx.lineWidth = 1;
-            tCtx.shadowBlur = 10;
-            tCtx.shadowColor = '#f00';
-            tCtx.strokeRect(0, 0, 640, 640);
-            tCtx.shadowBlur = 0;
-        }
-
-        function countColors() {
-            const counts = new Array(COLORS.length).fill(0);
-            for (let i = 0; i < T_SIZE; i++) {
-                for (let j = 0; j < T_SIZE; j++) {
-                    counts[territoryGrid[i][j]]++;
-                }
-            }
-            return counts;
-        }
-
-        function createCircle(cx, cy, radius, color, checkSameColor = false) {
-            while (radius > 0) {
-                const left = cx - radius;
-                const right = cx + radius;
-                const top = cy - radius;
-                const bottom = cy + radius;
-                if (left < 0 || right >= T_SIZE || top < 0 || bottom >= T_SIZE) {
-                    radius = Math.floor(radius * 0.7);
-                    continue;
-                }
-                if (checkSameColor) {
-                    let allSame = true;
-                    for (let i = Math.floor(cy - radius); i <= Math.ceil(cy + radius); i++) {
-                        for (let j = Math.floor(cx - radius); j <= Math.ceil(cx + radius); j++) {
-                            const dx = j - cx, dy = i - cy;
-                            if (dx*dx + dy*dy <= radius*radius) {
-                                if (i < 0 || i >= T_SIZE || j < 0 || j >= T_SIZE || territoryGrid[i][j] !== color) {
-                                    allSame = false;
-                                    break;
-                                }
-                            }
-                        }
-                        if (!allSame) break;
-                    }
-                    if (allSame) {
-                        break;
-                    } else {
-                        radius = Math.floor(radius * 0.7);
-                        continue;
-                    }
-                } else {
-                    break;
-                }
-            }
-            if (radius < 1) return;
-            const radiusSq = radius * radius;
-            for (let i = Math.max(0, Math.floor(cy - radius)); i < Math.min(T_SIZE, Math.ceil(cy + radius)); i++) {
-                for (let j = Math.max(0, Math.floor(cx - radius)); j < Math.min(T_SIZE, Math.ceil(cx + radius)); j++) {
-                    const dx = j - cx, dy = i - cy;
-                    if (dx*dx + dy*dy <= radiusSq) {
-                        territoryGrid[i][j] = color;
-                    }
-                }
-            }
-        }
-
-        function stepTerritory() {
-            if (!territoryRunning) return;
-            turn++;
-            document.getElementById('turnCount').innerText = turn;
-
-            const shuffledPriority = [...BASE_PRIORITY];
-            for (let i = shuffledPriority.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffledPriority[i], shuffledPriority[j]] = [shuffledPriority[j], shuffledPriority[i]];
-            }
-
-            const newGrid = new Array(T_SIZE);
-            for (let i = 0; i < T_SIZE; i++) {
-                newGrid[i] = new Uint8Array(territoryGrid[i]);
-            }
-
-            const bonus = (epidemicColor >= 0 && epidemicTurns > 0) ? EPIDEMIC_BONUS : 0;
-
-            for (let prio = 0; prio < shuffledPriority.length; prio++) {
-                const colorIdx = shuffledPriority[prio];
-                if (!warStatus[colorIdx]) continue;
-                const captureChance = 0.2 + (colorIdx === epidemicColor ? bonus : 0);
-                for (let i = 0; i < T_SIZE; i++) {
-                    for (let j = 0; j < T_SIZE; j++) {
-                        if (territoryGrid[i][j] === colorIdx && newGrid[i][j] === colorIdx) {
-                            const neighbors = getNeighbors(i, j);
-                            const enemyNeighbors = neighbors.filter(([ni, nj]) => {
-                                const neighborColor = territoryGrid[ni][nj];
-                                return neighborColor !== colorIdx && warStatus[neighborColor] === true;
-                            });
-                            if (enemyNeighbors.length > 0 && Math.random() < captureChance) {
-                                const [ei, ej] = enemyNeighbors[Math.floor(Math.random() * enemyNeighbors.length)];
-                                newGrid[ei][ej] = colorIdx;
-                            }
-                        }
-                    }
-                }
-            }
-
-            for (let i = 0; i < T_SIZE; i++) {
-                territoryGrid[i] = newGrid[i];
-            }
-
-            // События
-            if (Math.random() < SEPARATIST_CHANCE) {
-                const cx = Math.floor(Math.random() * T_SIZE);
-                const cy = Math.floor(Math.random() * T_SIZE);
-                const color = territoryGrid[cy][cx];
-                const radius = Math.floor(Math.random() * (MAX_DIAMETER - MIN_DIAMETER + 1)) + MIN_DIAMETER;
-                createCircle(cx, cy, radius, color, true);
-            }
-
-            if (epidemicTurns > 0) {
-                epidemicTurns--;
-                if (epidemicTurns === 0) epidemicColor = -1;
-            } else {
-                if (Math.random() < EPIDEMIC_CHANCE) {
-                    epidemicColor = Math.floor(Math.random() * COLORS.length);
-                    epidemicTurns = EPIDEMIC_DURATION;
-                }
-            }
-
-            const counts = countColors();
-            let maxCount = -1, maxColor = -1;
-            for (let c = 0; c < counts.length; c++) {
-                if (counts[c] > maxCount) {
-                    maxCount = counts[c];
-                    maxColor = c;
-                }
-            }
-            const total = T_SIZE * T_SIZE;
-            if (maxCount / total > CRISIS_THRESHOLD && Math.random() < CRISIS_CHANCE) {
-                const cx = Math.floor(Math.random() * T_SIZE);
-                const cy = Math.floor(Math.random() * T_SIZE);
-                const radius = Math.floor(Math.random() * (MAX_DIAMETER - MIN_DIAMETER + 1)) + MIN_DIAMETER;
-                let newColor;
-                do {
-                    newColor = Math.floor(Math.random() * COLORS.length);
-                } while (newColor === maxColor);
-                createCircle(cx, cy, radius, newColor, false);
-            }
-
-            if (Math.random() < MIGRATION_CHANCE) {
-                let colorExists = false;
-                let targetColor = -1;
-                for (let c = 0; c < COLORS.length; c++) {
-                    if (counts[c] > 0) {
-                        targetColor = c;
-                        colorExists = true;
-                        break;
-                    }
-                }
-                if (colorExists) {
-                    let cells = [];
-                    for (let i = 0; i < T_SIZE; i++) {
-                        for (let j = 0; j < T_SIZE; j++) {
-                            if (territoryGrid[i][j] === targetColor) {
-                                cells.push([i, j]);
-                            }
-                        }
-                    }
-                    const migrateCount = Math.floor(cells.length * MIGRATION_FRACTION);
-                    for (let k = 0; k < migrateCount && cells.length > 0; k++) {
-                        const idx = Math.floor(Math.random() * cells.length);
-                        const [i, j] = cells.splice(idx, 1)[0];
-                        let newColor;
-                        do {
-                            newColor = Math.floor(Math.random() * COLORS.length);
-                        } while (newColor === targetColor);
-                        territoryGrid[i][j] = newColor;
-                    }
-                }
-            }
-
-            for (let c = 0; c < COLORS.length; c++) {
-                if (Math.random() < WAR_STATUS_FLIP_CHANCE) {
-                    warStatus[c] = !warStatus[c];
-                }
-            }
-
-            drawTerritory();
-        }
-
-        function getNeighbors(row, col) {
-            const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
-            const result = [];
-            for (const [dr, dc] of dirs) {
-                const nr = row + dr, nc = col + dc;
-                if (nr >= 0 && nr < T_SIZE && nc >= 0 && nc < T_SIZE) {
-                    result.push([nr, nc]);
-                }
-            }
-            return result;
-        }
-
-        function toggleTerritory() {
-            territoryRunning = !territoryRunning;
-            const btn = document.getElementById('territoryToggle');
-            if (territoryRunning) {
-                btn.innerText = (lang === 'ru') ? '⏸ Пауза' : '⏸ Pause';
-                if (!territoryInterval) {
-                    territoryInterval = setInterval(stepTerritory, TICK_INTERVAL_MS);
-                }
-            } else {
-                btn.innerText = (lang === 'ru') ? '▶ Старт' : '▶ Start';
-                clearInterval(territoryInterval);
-                territoryInterval = null;
-            }
-        }
-
-        function resetTerritory() {
-            clearInterval(territoryInterval);
-            territoryInterval = null;
-            initTerritory();
-        }
-
-        // -----------------------------------------------
-        // 5. СТАРТ
-        // -----------------------------------------------
         showPage('heroPage');
     </script>
 </body>
